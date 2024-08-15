@@ -31,10 +31,8 @@ import ErrorsProvider from 'apps/web/contexts/Errors';
 import { isDevelopment } from 'apps/web/src/constants';
 
 const DynamicCookieBannerWrapper = dynamic(
-  async () => import('apps/web/src/components/CookieBannerWrapper'),
-  {
-    ssr: false,
-  },
+  () => import('apps/web/src/components/CookieBannerWrapper'),
+  { ssr: false }
 );
 
 coinbaseWallet.preference = 'all';
@@ -47,13 +45,13 @@ const connectors = connectorsForWallets(
     },
   ],
   {
-    projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID ?? 'dummy-id',
+    projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || 'dummy-id',
     walletConnectParameters: {},
     appName: 'Base.org',
     appDescription: '',
     appUrl: 'https://www.base.org/',
     appIcon: '',
-  },
+  }
 );
 
 const config = createConfig({
@@ -66,6 +64,7 @@ const config = createConfig({
   },
   ssr: true,
 });
+
 const queryClient = new QueryClient();
 const sprigEnvironmentId = process.env.NEXT_PUBLIC_SPRIG_ENVIRONMENT_ID;
 
@@ -73,34 +72,22 @@ type AppProvidersProps = {
   children: React.ReactNode;
 };
 
-// TODO: Not all pages needs all these components, ideally should be split and put
-//       on the sub-layouts
 export default function AppProviders({ children }: AppProvidersProps) {
-  const trackingPreference = useRef<TrackingPreference | undefined>();
+  const trackingPreference = useRef<TrackingPreference>();
 
   const setTrackingPreference = useCallback((newPreference: TrackingPreference) => {
     const priorConsent = trackingPreference.current?.consent;
     trackingPreference.current = newPreference;
 
-    if (!priorConsent) {
-      // The first time the modal appears, this function is called with nothing present in
-      // trackingPreference.current. To avoid an infinite refresh loop, we return early on
-      // the first call.
-      return;
-    }
+    if (!priorConsent) return;
 
     const newConsent = newPreference.consent;
 
-    // Check if the preferences have changed.
-    const diff = [
-      ...priorConsent.filter((elem: TrackingCategory) => !newConsent.includes(elem)),
-      ...newConsent.filter((elem: TrackingCategory) => !priorConsent.includes(elem)),
-    ];
+    const preferencesChanged = priorConsent.some(
+      (elem: TrackingCategory) => !newConsent.includes(elem)
+    ) || newConsent.some((elem: TrackingCategory) => !priorConsent.includes(elem));
 
-    // Reload if the preferences have changed.
-    if (diff.length > 0) {
-      window.location.reload();
-    }
+    if (preferencesChanged) window.location.reload();
   }, []);
 
   const handleLogError = useCallback((err: Error) => console.error(err), []);
